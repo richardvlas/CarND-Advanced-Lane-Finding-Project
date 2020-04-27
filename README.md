@@ -193,18 +193,106 @@ And here is a result of applying Search Around Polynomial algorithm to detect la
 
 In this step we'll compute the radius of curvature of the second order polynomial fit and vehicle position with respect to the center of the lane. 
 
-The radius of curvature for the second order polynomial is a function of y coordinate and is given as follows:
+The radius of curvature for the second order polynomial depends on y coordinate and the code to calculate it is given in [lane_lines.py](lane_lines.py) on line 289 defined in `measure_curvature_real()` function as:
 
-$R_curve = \frac{(1+(2Ay+B)^2)^3/2}{∣2A∣}$
+```python
+def measure_curvature_real(img_shape, fit):
+    '''Calculates the curvature of polynomial function in meters.
+    '''
+    ym_per_pix = 30/720  # meters per pixel in y dimension
+    xm_per_pix = 3.7/700 # meters per pixel in x dimension
+    
+    # vector representing y values to cover y-range as image
+    ploty = np.linspace(0, img_shape[0] - 1, img_shape[0])
+    
+    # Define y-value where the radius of curvature will be calculated
+    # Choose the maximum y-value, corresponding to the bottom of the image
+    y_eval = np.max(ploty)
+    
+    # Calculation of radius of curvature
+    curverad = (1 + (2*fit[0]*y_eval*ym_per_pix + fit[1])**2)**(3/2) / np.abs(2*fit[0])
+            
+    return curverad
+```
 
+The function `vehicle_position()` is used to calculate a vehicle position with respect to the center of the lane by calculating the position of each lane line and average them together to identify the center of the lane. The algorithm assumes that camera is mounted in the middle of the car(x direction). Below is the function definition given as: 
 
+```python
+def vehicle_position(img_shape, left_fit, right_fit):
+    '''Calculates vehicle position with respect to center of lane in meters.
+       This is equivalent to offset from the center of the lane.
+       Positive value - vehicle is to the right of the lane center
+       Negative value - vehicle is to the left of the lane center
+    '''
+    xm_per_pix = 3.7/700 # meters per pixel in x dimension
+    car_position = img_shape[1] // 2
+    
+    left_fitx, right_fitx, ploty = fit_x_values(img_shape, left_fit, right_fit)
+
+    lane_center = (right_fitx[-1] + left_fitx[-1]) / 2
+    vehicle_offset = (car_position - lane_center)*xm_per_pix
+        
+    return vehicle_offset
+```
 
 ### 6. Final Image Pipeline 
+I have created an image pipeline given in [image_pipeline.py](image_pipeline.py) that takes each step defined above and run an image though it. It also makes a use of a class `Line()` that stores some information about the lane lines. To unwrap the image with lane lines drawn onto it, I defined `draw_lane_polygon()` function that incorporates drawing as well as unwrapping the image back. More details can be found in the source code. 
+
+```Python
+import glob
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+
+from image_undist import cam_calibration, image_undistort
+from image_thresholds import thresholds
+from perspective_transform import image_warp
+from lane_lines import Line, sliding_window, draw_lane_lines, draw_lane_polygon, measure_curvature_real, vehicle_position
+
+def pipeline(img):
+    # Initialize two instance of class Line() to represent left and right lane lines
+    left_line  = Line(), right_line = Line()
+    # Camera calibration: returns the camera matrix and distortion coefficients
+    mtx, dist = cam_calibration(glob.glob('./camera_cal/calibration*.jpg'))        
+    # Perform image distortion correction
+    undistorted = image_undistort(img, mtx, dist)
+    # Calculate combination of color and gradient thresholds
+    combined_binary = thresholds(undistorted)
+    # Calculate perspective transform
+    warped_img = image_warp(undistorted, reversed=False, box=False)
+    # Calculate reverse perspective transform
+    unwarped_img, Minv = image_warp(undistorted, reversed=True, box=False)
+    # Calculate perspective transform of binary image 
+    combined_binary_warped = image_warp(combined_binary)
+    # Detect lane lines
+    left_fit, right_fit, out_image = sliding_window(combined_binary_warped)        
+    # Calculate the lane curvature
+    left_lane = measure_curvature_real(combined_binary_warped.shape, left_fit)
+    right_lane = measure_curvature_real(combined_binary_warped.shape, right_fit)
+    lane_curvature = (left_lane + right_lane) / 2
+    # Calculate vehicle offset
+    center_offset = vehicle_position(combined_binary_warped.shape, left_fit, right_fit)
+    # Draw lane polygon
+    result = draw_lane_polygon(undistorted, warped_img, left_fit, right_fit, Minv,
+                               lane_curvature, center_offset)
+    return result
+```
+
+Here's how the result of applying the image pipeline looks like
+
+<img src="output_images/07_image_pipeline.png" width="100%" height="100%">
+
 
 ## Pipeline (Video)
 
+The image processing pipeline that was established to find the lane lines in images is used and modified to include both search algorithms and to successfully apply it to process video frames. The output here is a new video where the lanes are identified in every frame, and outputs are generated regarding the radius of curvature of the lane and vehicle position within the lane. The video pipeline and its details can be found in [video_pipeline.py](video_pipeline.py)
 
-Here's a link to my [video](output_video.mp4) result
+Here's a link to the [video](output_video.mp4) result.
 
 ## Discussion
+As shown in the output_video.mp4, the video pipeline works well for the basic video with normal lighting conditions where the lane lines are well visible and the algorithm has not issue to detect lane lines. Nevertheless the challenge was to manually tune the threshold parameters of color and gradient filters which also consumed too much time to come up with an optimal solution based on the project video. Another challenge is to find optimal parameters for various driving conditions (raining, snowing, night driving...)  
+
+The algorithm provided is considered as a very basic approach for detecting the lane lines. For future improvements this algorithm should be enhanced with deep learning methods to identify the lane lines, otherwise it would require many hardcoded rules to account for each driving condition.
+
+I plan to improve this project in the following months and test it on other videos as well to ensure it really performs well under various conditions.
 
