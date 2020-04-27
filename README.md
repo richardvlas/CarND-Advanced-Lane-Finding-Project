@@ -92,9 +92,9 @@ optional arguments:
                         the default is: test_images/test5.jpg)
 ```
 
-To specify your own path to calibration images, simply use wildcard symbol `*.jpg` to read all jpg images as follows
+To specify your own path to an image, simply use optional parameter `-p` and type file path to the image as follows
 ```
->python image_thresholds.py -p ./your_folder/*.jpg
+>python image_thresholds.py -p ./your_folder/image_name.jpg
 ```
 
 Here is a result of applying [image_thresholds.py](image_thresholds.py) on an image to obtain the final thresholded binary image: 
@@ -159,7 +159,7 @@ optional arguments:
   -b, --box             plot calibration box in source (original) and
                         destination (desired or warped) coordinates
 ```
-To specify your own path to calibration images, simply use wildcard symbol `*.jpg` to read all jpg images as follows
+To specify your own path to an image, simply use optional parameter `-p` and type file path to the image as follows
 ```
 >python perspective_transform.py -p ./your_folder/image_name.jpg
 ```
@@ -169,8 +169,35 @@ Below is an example of applying a perspective transform to an image, showing tha
 <img src="output_images/04_perspective_transform.png" width="100%" height="100%">
 
 ### 4. Lane Lines Detection
+After applying calibration, thresholding, and a perspective transform to a road image, we should have a binary image where the lane lines stand out clearly. In this step we still need to decide explicitly which pixels are part of the lines and which belong to the left line and which belong to the right line.
+
+To do so and in order to detect lane lines from the warped binary thresholded image, I used two methods that search for the pixels representing left and right lane line.
+
+* **Sliding Window** - uses a histogram of where the binary activations occur across the image. It identifies left and right lane line from maximum peaks in the histogram and centers one window for each line around the histogram amplitude peak. Then it scans the image from bottom to top and counts the number of pixels in each window. If the count exceeds minimum number of pixels set to `minpix = 50` it recenters the next window at the mean of x position of the pixels. This is repeated for the number of sliding windows set to `nwindows = 20`. It then uses a second order polynomial to fit to each lane pixel using `np.polyfit`.
+
+* **Search Around Polynomial** - This algorithm uses the previously fitted polynomial from Sliding Window algorithm to just search around it in a range set by `margin`. This proves to be more efficient that starting always from scratch with Sliding Window algorithm and it's based on the assumption that the curvature is smooth without drastic changes in curvature (i.e. instant change from sharp right curve to sharp left curve). 
+
+The code that defines lane lines finding algorthms as well as its description is saved in the [lane_lines.py](lane_lines.py) file. The file contains a function called `sliding_window()` that defines Sliding Window algorithm and `search_around_poly()` function for Search Around Polynomial algorithm. It also contains other auxiliary functions such as `fit_poly()` to fit a second order polynomial with np.polyfit(). More details in the the source code.
+
+Here is a result of applying Sliding Window algorithm on an image to detect lane lines: 
+
+<img src="output_images/05_sliding_window.png" width="100%" height="100%">
+
+And here is a result of applying Search Around Polynomial algorithm to detect lane lines in the margin around the polynomial fit: 
+
+<img src="output_images/06_search_around.png" width="100%" height="100%">
+
+
 
 ### 5. Lane Curvature and Vehicle Position with respect to Lane Center
+
+In this step we'll compute the radius of curvature of the second order polynomial fit and vehicle position with respect to the center of the lane. 
+
+The radius of curvature for the second order polynomial is a function of y coordinate and is given as follows:
+
+$R_curve = \frac{(1+(2Ay+B)^2)^3/2}{∣2A∣}$
+
+
 
 ### 6. Final Image Pipeline 
 
