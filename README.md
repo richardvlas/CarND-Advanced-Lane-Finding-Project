@@ -66,6 +66,41 @@ Here is an example of applying the camera calibration parameters on test images 
 One can observe that there is a difference between distored (left column) and undistored (right column) images especialy apparent close to the edges showing that the distortion was corrected. These images will be taken as input to the image and video pipeline.
 
 ### 2. Image Thresholds
+The goal of this step is to apply different types of image filters in order to produce binary image with pixels representing lane lines and ideally nothing else on the road.
+
+For this, I combined color and gradient thresholding to filter all non-relevant pixels other than the lane lines.
+
+The following filters were used:
+
+* `abs_sobel_thresh()` - Function that applies Sobel x (=first derivative in x direction), then takes an absolute value and applies a threshold. This is applied on the 's' channel of HLS color space
+
+* `lab_thresh()` - Function that converts RGB image to LAB color space. It allows to extract each channel by specifying the parameter `channel='b'`.  
+
+I tuned the thresholds for each filter manually and combined them togheter with logical operators `&` and `|` to come up with the best result. This combination is defined in function called `thresholds()`. 
+
+The code as well as its description is saved in the [image_thresholds.py](image_thresholds.py) file. 
+
+Here is how to run the Python script that calculates generates the binary thresholded image:
+
+``` 
+>python image_thresholds.py -h
+usage: image_thresholds.py [-h] [-p PATH]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p PATH, --path PATH  specify path with image file name as PATH (without -p
+                        the default is: test_images/test5.jpg)
+```
+
+To specify your own path to calibration images, simply use wildcard symbol `*.jpg` to read all jpg images as follows
+```
+>python image_thresholds.py -p ./your_folder/*.jpg
+```
+
+Here is a result of applying [image_thresholds.py](image_thresholds.py) on an image to obtain the final thresholded binary image: 
+
+<img src="output_images/03_image_thresholds.png" width="100%" height="100%">
+
 
 ### 3. Perspective Transform
 A perspective transform maps the points in a given image to different, desired, image points with a new perspective. The perspective transform that's of the most interest in this project is a bird’s-eye view transform that let’s us view a lane from above; this will be useful for calculating the lane curvature later on. 
@@ -126,7 +161,7 @@ optional arguments:
 ```
 To specify your own path to calibration images, simply use wildcard symbol `*.jpg` to read all jpg images as follows
 ```
->python perspective_transform.py -h ./your_folder/image_name.jpg
+>python perspective_transform.py -p ./your_folder/image_name.jpg
 ```
 
 Below is an example of applying a perspective transform to an image, showing that the curved lines are (more or less) parallel in the transformed image:
