@@ -280,14 +280,19 @@ def pipeline(img):
 
 Here's how the result of applying the image pipeline looks like
 
-
 <img src="output_images/07_image_pipeline.png" width="100%" height="100%">
 
 
 ## Pipeline (Video)
 
+The image processing pipeline that was established to find the lane lines in images is used and modified to include both search algorithms and to successfully apply it to process video frames. The output here is a new video where the lanes are identified in every frame, and outputs are generated regarding the radius of curvature of the lane and vehicle position within the lane. The video pipeline and its details can be found in [video_pipeline.py](video_pipeline.py)
 
-Here's a link to my [video](output_video.mp4) result
+Here's a link to the [video](output_video.mp4) result.
 
 ## Discussion
+As shown in the output_video.mp4, the video pipeline works well for the basic video with normal lighting conditions where the lane lines are well visible and the algorithm has not issue to detect lane lines. Nevertheless the challenge was to manually tune the threshold parameters of color and gradient filters which also consumed too much time to come up with an optimal solution based on the project video. Another challenge is to find optimal parameters for various driving conditions (raining, snowing, night driving...)  
+
+The algorithm provided is considered as a very basic approach for detecting the lane lines. For future improvements this algorithm should be enhanced with deep learning methods to identify the lane lines, otherwise it would require many hardcoded rules to account for each driving condition.
+
+I plan to improve this project in the following months and test it on other videos as well to ensure it really performs well under various conditions.
 
