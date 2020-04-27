@@ -31,7 +31,7 @@ The first step is to correct the distorsion of images by calibrating the camera.
 There are two main steps to this process: use chessboard images to obtain image points and object points, and then use the OpenCV functions `cv2.calibrateCamera()` and `cv2.undistort()` to compute the calibration and undistortion.
 
 
-The code as well as its description is saved in the `image_undist.py` file. The file contains two functions:
+The code as well as its description is saved in the [image_undist.py](image_undist.py) file. The file contains two functions:
 * `cam_calibration()` - Calculates object points, image points and performs camera calibration parameters
 * `image_undistort()` - Performs image distortion correction and returns the undistorted image 
 
@@ -52,7 +52,7 @@ To specify your own path to calibration images, simply use wildcard symbol `*.jp
 >python image_undist.py -p ./your_folder/*.jpg
 ```
 
-Here is a result of applying `image_undist.py` on an image 
+Here is a result of applying [image_undist.py](image_undist.py) on an image 
 
 <img src="output_images/01_dist_undistorted_image.png" width="100%" height="100%">
 
@@ -68,9 +68,70 @@ One can observe that there is a difference between distored (left column) and un
 ### 2. Image Thresholds
 
 ### 3. Perspective Transform
+A perspective transform maps the points in a given image to different, desired, image points with a new perspective. The perspective transform that's of the most interest in this project is a bird’s-eye view transform that let’s us view a lane from above; this will be useful for calculating the lane curvature later on. 
+
+To generate output of bird-eye like image of a road, I will write a function that takes the undistorted image as input and completes the following steps:
+
+- Define 4 source points - the x and y pixel values of four points on the road in a trapezoidal shape that would represent a rectangle when looking down on the road from above. I chose an image where the lane lines are straight, and find four points lying along the lines that, after perspective transform, make the lines look straight and vertical from a bird's eye view perspective.
+
+- Define 4 destination points - are the x and y pixel values of where we want those four corners to be mapped to in the output image (must be listed in the same order as src points!)
+
+- Use `cv2.getPerspectiveTransform()` -  calculates a perspective transform from four pairs of the corresponding points and to returns `M`, the transform matrix
+
+- Use `cv2.warpPerspective()` - applies a perspective transformation to an image by using `M` and returns transformed image to a top-down view
+
+I chose to hardcode the source and destination points as follows:
+
+```python
+# Define four source coordinates (calibration box)
+src = np.array([[689,450],
+                [1038,675], 
+                [280,675],
+                [594,450]], dtype=np.float32)
+    
+# Four desired or warped (dst - destination) points
+offset = 280   
+dst = np.float32([[1279-offset, 0],
+                  [1279-offset, 719],
+                  [offset, 719],
+                  [offset, 0]])
+```
+
+This resulted in the following source and destination points:
+
+| Source        | Destination   | 
+|:-------------:|:-------------:| 
+| 689,450       | 999, 0        | 
+| 1038,675      | 999, 719      |
+| 280,675       | 280, 719      |
+| 594,450       | 280, 0        |
+
+
+For curved lines, the same four source points will now work to transform any image (under the assumption that the road is flat and the camera perspective hasn't changed). When applying the transform to new images, the test of whether or not you got the transform correct, is that the lane lines should appear parallel in the warped images, whether they are straight or curved.
+
+The code that defines perspective transform as well as its description is saved in the [perspective_transform.py](perspective_transform.py) file. The file contains a function called `image_warp()` that can be set in reverse mode to calculate inverse perspective transform with `reversed=True`.
+
+Here is how to run the Python script that calculates camera matrix, distortion coefficients from calibration images and undistort the images:
+
+``` 
+>python perspective_transform.py -h
+usage: perspective_transform.py [-h] [-p PATH] [-b]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p PATH, --path PATH  specify path with image file name as PATH (without -p
+                        the default is: test_images/test5.jpg)
+  -b, --box             plot calibration box in source (original) and
+                        destination (desired or warped) coordinates
+```
+To specify your own path to calibration images, simply use wildcard symbol `*.jpg` to read all jpg images as follows
+```
+>python perspective_transform.py -h ./your_folder/image_name.jpg
+```
+
+Below is an example of applying a perspective transform to an image, showing that the curved lines are (more or less) parallel in the transformed image:
 
 <img src="output_images/04_perspective_transform.png" width="100%" height="100%">
-
 
 ### 4. Lane Lines Detection
 
